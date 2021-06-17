@@ -1,0 +1,14 @@
+.vscode
+dist/*
+build/*
+hook/*
+loaders/*
+src/pages.json
+node_modules/*
+src/utils/
+src/vendor
+src/plugin
+subPackages/components/schedule/mescroll-uni/*
+vue.config.js
+babel.config.js
+postcss.config.js
