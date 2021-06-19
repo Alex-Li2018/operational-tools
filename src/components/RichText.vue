@@ -1,4 +1,3 @@
-/* eslint-disable no-underscore-dangle */
 <template>
   <div class="quill-editor">
     <slot name="toolbar"></slot>
@@ -7,13 +6,16 @@
 </template>
 
 <script>
+import {
+ watch, ref, reactive, defineComponent, onMounted, onBeforeMount,
+} from 'vue';
+
 import 'quill/dist/quill.core.css';
 import 'quill/dist/quill.snow.css';
 import 'quill/dist/quill.bubble.css';
-import _Quill from 'quill';
+import Quill from 'quill';
 
-const Quill = window.Quill || _Quill;
-const defaultOptions = {
+const defaultOp = {
   theme: 'snow',
   boundary: document.body,
   modules: {
@@ -37,135 +39,105 @@ const defaultOptions = {
   placeholder: 'Insert text here ...',
   readOnly: false,
 };
-// pollfill
-if (typeof Object.assign !== 'function') {
-  Object.defineProperty(Object, 'assign', {
-    value(target) {
-      if (target == null) {
-        throw new TypeError('Cannot convert undefined or null to object');
-      }
-      const to = Object(target);
-      for (let index = 1; index < arguments.length; index++) {
-        const nextSource = arguments[index];
-        if (nextSource != null) {
-          for (const nextKey in nextSource) {
-            if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
-              to[nextKey] = nextSource[nextKey];
-            }
-          }
-        }
-      }
-      return to;
-    },
-    writable: true,
-    configurable: true,
-  });
-}
+
 // export
-export default {
+export default defineComponent({
   name: 'quill-editor',
-  data() {
-    return {
-      _options: {},
-      _content: '',
-      defaultOptions,
-    };
-  },
   props: {
-    content: String,
-    value: String,
+    modelValue: String,
     disabled: {
       type: Boolean,
+      required: false,
       default: false,
     },
     options: {
       type: Object,
       required: false,
-      default: () => ({}),
+      default: () => ({
+        readOnly: false,
+      }),
     },
     globalOptions: {
       type: Object,
       required: false,
-      default: () => ({}),
+      default: () => ({
+        readOnly: false,
+      }),
     },
   },
-  mounted() {
-    this.initialize();
-  },
-  beforeUnmount() {
-    this.quill = null;
-    delete this.quill;
-  },
-  methods: {
-    // Init Quill instance
-    initialize() {
-      if (this.$el) {
-        // Options
-        this._options = { ...this.defaultOptions, ...this.globalOptions, ...this.options };
-        // Instance
-        this.quill = new Quill(this.$refs.editor, this._options);
+  setup(props, ctx) {
+    const editor = ref(null); // 这是dom
+    const optionsTmp = ref({});
+    const contentTmp = ref('');
+    const defaultOptions = reactive(defaultOp);
+    const quillInstance = ref({});
 
-        this.quill.enable(false);
+    onBeforeMount(() => {
+      quillInstance.value = {};
+    });
+
+    function initialize() {
+      // Options
+        optionsTmp.value = { ...defaultOptions, ...props.globalOptions, ...props.options };
+        // Instance
+        quillInstance.value = new Quill(editor.value, optionsTmp.value);
+
+        quillInstance.value.enable(false);
         // Set editor content
-        if (this.value || this.content) {
-          this.quill.pasteHTML(this.value || this.content);
+        if (props.modelValue || contentTmp) {
+          quillInstance.value.pasteHTML(props.modelValue.value || contentTmp.value);
         }
         // Disabled editor
-        if (!this.disabled) {
-          this.quill.enable(true);
+        if (!props.disabled) {
+          quillInstance.value.enable(true);
         }
         // Mark model as touched if editor lost focus
-        this.quill.on('selection-change', (range) => {
+        quillInstance.value.on('selection-change', (range) => {
           if (!range) {
-            this.$emit('blur', this.quill);
+            ctx.emit('blur', quillInstance.value);
           } else {
-            this.$emit('focus', this.quill);
+            ctx.emit('focus', quillInstance.value);
           }
         });
         // Update model if text changes
-        this.quill.on('text-change', (delta, oldDelta, source) => {
-          let html = this.$refs.editor.children[0].innerHTML;
-          const { quill } = this;
-          const text = this.quill.getText();
+        quillInstance.value.on('text-change', () => {
+          let html = editor.value.children[0].innerHTML;
+
+          const text = quillInstance.value.getText();
           if (html === '<p><br></p>') html = '';
-          this._content = html;
-          this.$emit('input', this._content);
-          this.$emit('change', { html, text, quill });
+          contentTmp.value = html;
+          ctx.emit('update:modelValue', contentTmp.value);
+          ctx.emit('change', { html, text, quillInstance: quillInstance.value });
         });
         // Emit ready event
-        this.$emit('ready', this.quill);
-      }
-    },
-  },
-  watch: {
-    // Watch content change
-    content(newVal) {
-      if (this.quill) {
-        if (newVal && newVal !== this._content) {
-          this._content = newVal;
-          this.quill.pasteHTML(newVal);
+        ctx.emit('ready', quillInstance.value);
+    }
+
+    onMounted(initialize);
+
+    watch(() => props.modelValue, (newVal) => {
+      if (Object.keys(quillInstance).length) {
+        if (newVal && newVal !== contentTmp.value) {
+          contentTmp.value = newVal;
+          quillInstance.value.pasteHTML(newVal);
         } else if (!newVal) {
-          this.quill.setText('');
+          quillInstance.value.setText('');
         }
       }
-    },
-    // Watch content change
-    value(newVal) {
-      if (this.quill) {
-        if (newVal && newVal !== this._content) {
-          this._content = newVal;
-          this.quill.pasteHTML(newVal);
-        } else if (!newVal) {
-          this.quill.setText('');
-        }
+    });
+
+    watch(() => props.disabled, (newVal) => {
+      if (Object.keys(quillInstance).length) {
+        quillInstance.value.enable(!newVal);
       }
-    },
-    // Watch disabled change
-    disabled(newVal) {
-      if (this.quill) {
-        this.quill.enable(!newVal);
-      }
-    },
+    });
+
+    return {
+      optionsTmp: {},
+      contentTmp: '',
+      defaultOptions,
+      editor,
+    };
   },
-};
+});
 </script>
