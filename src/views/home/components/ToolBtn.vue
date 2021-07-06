@@ -39,10 +39,11 @@ export default defineComponent({
             visible.value = true;
         }
 
-        function importArticle(url) {
-            crawlerArticle(url, (res) => {
-                ctx.emit('importArticle', res);
-            });
+        async function importArticle(url) {
+            const res = await crawlerArticle(url);
+            // crawlerArticle(url, (res) => {
+            //     ctx.emit('importArticle', res);
+            // });
         }
 
         function handlerClear() {
