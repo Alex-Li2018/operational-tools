@@ -1,6 +1,6 @@
 <template>
     <el-dialog
-        title="收货地址"
+        title="爬取链接"
         v-model="dialogVisible"
         :before-close="cancel">
         <el-form
@@ -63,7 +63,8 @@ export default defineComponent({
 
         const importLink = () => {
             ctx.emit('importArticle', state.form.link);
-            cancel();
+            state.dialogVisible = false;
+            ctx.emit('update:visible', false);
         };
 
         return {

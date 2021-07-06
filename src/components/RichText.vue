@@ -113,6 +113,7 @@ export default defineComponent({
   #editor {
     flex: 1;
     margin-bottom: 20px;
+    overflow-x: hidden;
     overflow-y: auto;
   }
 }

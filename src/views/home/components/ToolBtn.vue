@@ -41,9 +41,7 @@ export default defineComponent({
 
         async function importArticle(url) {
             const res = await crawlerArticle(url);
-            // crawlerArticle(url, (res) => {
-            //     ctx.emit('importArticle', res);
-            // });
+            ctx.emit('importArticle', res);
         }
 
         function handlerClear() {
