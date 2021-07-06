@@ -1,34 +1,71 @@
 <template>
     <div class="tool-btn_wrap">
-        <el-button type="info" @click="importArticle">导入文章</el-button>
-        <el-button type="info">微信复制</el-button>
-        <el-button type="info">保存同步</el-button>
-        <el-button type="info">清空内容</el-button>
+        <el-button
+            type="info"
+            @click="handlerImportLink">
+            导入文章
+        </el-button>
+        <el-button
+            type="info"
+            @click="handlerCopy">
+            导入复制
+        </el-button>
+        <el-button
+            type="info"
+            @click="handlerClear">
+            清空内容
+        </el-button>
         <el-button type="info">手机预览</el-button>
+        <!-- 导入链接 -->
+        <ImportLink
+            v-model:visible="visible"
+            @importArticle="importArticle" />
     </div>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
+import { defineComponent, ref } from 'vue';
 import type { SetupContext } from 'vue';
 import crawlerArticle from '@/node_script/crawler.ts';
+import ImportLink from './ImportLink.vue';
 
 export default defineComponent({
+    components: {
+        ImportLink,
+    },
     setup(props, ctx: SetupContext) {
-        function importArticle() {
-            crawlerArticle('/api/s?__biz=MzA4NTM2MzQxOQ==&mid=100038721&idx=1&sn=53a1bc72da4997812143919c68b08681&chksm=1fdbc7f528ac4ee38b92bac215bd047cef2e4d673e02706a0c7726fd08e2d4b5849a4c627400#rd', (res) => {
+        const visible = ref(false);
+        function handlerImportLink() {
+            visible.value = true;
+        }
+
+        function importArticle(url) {
+            crawlerArticle(url, (res) => {
                 ctx.emit('importArticle', res);
             });
         }
 
+        function handlerClear() {
+            ctx.emit('importArticle', '');
+        }
+
+        async function handlerCopy() {
+            const text = await navigator.clipboard.readText();
+            ctx.emit('importArticle', text);
+        }
+
         return {
+            visible,
+            handlerImportLink,
+            handlerClear,
+            handlerCopy,
             importArticle,
         };
     },
 });
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .tool-btn_wrap {
     display: flex;
     flex-direction: column;

@@ -8,7 +8,7 @@ module.exports = {
     },
     proxy: {
       '/api': {
-        target: 'https://mp.weixin.qq.com',
+        target: 'http://127.0.0.1:5000/v1',
         changeOrigin: true,
         secure: true,
         pathRewrite: {

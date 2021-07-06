@@ -1,6 +1,6 @@
 <template>
     <section class="home_wrap flex_layout_c">
-        <div class="rich-text_wrap">
+        <div class="editor_wrap">
             <RichText v-model="content"/>
             <div class="tool-btn_outer">
                 <ToolBtn @importArticle="importArticle" />
@@ -11,7 +11,6 @@
 
 <script lang="ts">
 import { defineComponent, ref } from 'vue';
-import type { SetupContext } from 'vue';
 import RichText from '../../components/RichText.vue';
 import ToolBtn from './components/ToolBtn.vue';
 
@@ -20,7 +19,7 @@ export default defineComponent({
         RichText,
         ToolBtn,
     },
-    setup(props, ctx: SetupContext) {
+    setup() {
         const content = ref('');
 
         function importArticle(res) {
@@ -37,9 +36,9 @@ export default defineComponent({
 
 <style lang="scss">
 .home_wrap {
-    .rich-text_wrap {
-        width: 500px;
+    .editor_wrap {
         position: relative;
+        height: 100vh;
         .quill-editor {
             display: flex;
             flex-direction: column;

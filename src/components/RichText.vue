@@ -1,143 +1,119 @@
 <template>
-  <div class="quill-editor">
-    <slot name="toolbar"></slot>
-    <div ref="editor"></div>
+  <div
+    class="rich-text_wrap"
+    @paste="pasteHandler">
+    <div
+        id="editorToolbar"
+        style="border: 1px solid #ccc"
+    />
+    <div
+        id="editor"
+        name="editor"
+        style="
+            max-width: 100%;
+            min-height: 460px;
+            border: 1px solid #ccc
+        "
+    />
   </div>
 </template>
 
 <script>
 import {
- watch, ref, reactive, defineComponent, onMounted, onBeforeMount,
+ watch, toRefs, markRaw, defineComponent, onMounted,
 } from 'vue';
+import { uploadQiniu } from '../utils/qiniuUpload.js';
 
-import 'quill/dist/quill.core.css';
-import 'quill/dist/quill.snow.css';
-import 'quill/dist/quill.bubble.css';
-import Quill from 'quill';
+const E = require('wangeditor');
 
-const defaultOp = {
-  theme: 'snow',
-  boundary: document.body,
-  modules: {
-    toolbar: [
-      ['bold', 'italic', 'underline', 'strike'],
-      ['blockquote', 'code-block'],
-      [{ header: 1 }, { header: 2 }],
-      [{ list: 'ordered' }, { list: 'bullet' }],
-      [{ script: 'sub' }, { script: 'super' }],
-      [{ indent: '-1' }, { indent: '+1' }],
-      [{ direction: 'rtl' }],
-      [{ size: ['small', false, 'large', 'huge'] }],
-      [{ header: [1, 2, 3, 4, 5, 6, false] }],
-      [{ color: [] }, { background: [] }],
-      [{ font: [] }],
-      [{ align: [] }],
-      ['clean'],
-      ['link', 'image', 'video'],
-    ],
-  },
-  placeholder: 'Insert text here ...',
-  readOnly: false,
-};
-
-// export
 export default defineComponent({
-  name: 'quill-editor',
+  name: 'rich-text',
   props: {
-    modelValue: String,
-    disabled: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    options: {
-      type: Object,
-      required: false,
-      default: () => ({
-        readOnly: false,
-      }),
-    },
-    globalOptions: {
-      type: Object,
-      required: false,
-      default: () => ({
-        readOnly: false,
-      }),
+    modelValue: {
+      type: String,
+      default: '',
     },
   },
   setup(props, ctx) {
-    const editor = ref(null); // 这是dom
-    const optionsTmp = ref({});
-    const contentTmp = ref('');
-    const defaultOptions = reactive(defaultOp);
-    const quillInstance = ref({});
-
-    onBeforeMount(() => {
-      quillInstance.value = {};
+    const { modelValue } = toRefs(props);
+    const wang = markRaw({
+      editor: {},
     });
 
-    function initialize() {
-      // Options
-        optionsTmp.value = { ...defaultOptions, ...props.globalOptions, ...props.options };
-        // Instance
-        quillInstance.value = new Quill(editor.value, optionsTmp.value);
-
-        quillInstance.value.enable(false);
-        // Set editor content
-        if (props.modelValue || contentTmp) {
-          quillInstance.value.pasteHTML(props.modelValue.value || contentTmp.value);
-        }
-        // Disabled editor
-        if (!props.disabled) {
-          quillInstance.value.enable(true);
-        }
-        // Mark model as touched if editor lost focus
-        quillInstance.value.on('selection-change', (range) => {
-          if (!range) {
-            ctx.emit('blur', quillInstance.value);
-          } else {
-            ctx.emit('focus', quillInstance.value);
-          }
-        });
-        // Update model if text changes
-        quillInstance.value.on('text-change', () => {
-          let html = editor.value.children[0].innerHTML;
-
-          const text = quillInstance.value.getText();
-          if (html === '<p><br></p>') html = '';
-          contentTmp.value = html;
-          ctx.emit('update:modelValue', contentTmp.value);
-          ctx.emit('change', { html, text, quillInstance: quillInstance.value });
-        });
-        // Emit ready event
-        ctx.emit('ready', quillInstance.value);
+    async function xhrUpload(resultFiles, insertImgFn) {
+      const files = resultFiles[0];
+      const { name } = files;
+      const fileName = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
+      const key = `image_${new Date().getTime()}.${fileName}`;
+      const res = await uploadQiniu(files, key);
+      // 将数据添加到输入框
+      const url = `http://imgcdnstatic.top/${res.key}`;
+      insertImgFn(url);
     }
 
-    onMounted(initialize);
+    function initEditor() {
+      wang.editor = new E('#editorToolbar', '#editor');
+      wang.editor.config.zIndex = 1;
+      wang.editor.config.menus = [
+          'head',
+          'bold',
+          'fontSize',
+          'fontName',
+          'italic',
+          'underline',
+          'strikeThrough',
+          'indent',
+          'lineHeight',
+          'foreColor',
+          'backColor',
+          'link',
+          'list',
+          'todo',
+          'justify',
+          'quote',
+          'emoticon',
+          'image',
+          'video',
+          'table',
+          'code',
+          'splitLine',
+          'undo',
+          'redo',
+          '小程序',
+      ];
+      wang.editor.config.uploadImgShowBase64 = true;
+      wang.editor.config.uploadImgMaxSize = 400 * 1024;
+      wang.editor.config.uploadImgAccept = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+      wang.editor.config.uploadImgMaxLength = 1;
+      wang.editor.config.customUploadImg = (resultFiles, insertImgFn) => {
+          xhrUpload(resultFiles, insertImgFn);
+      };
+      wang.editor.create();
+    }
 
-    watch(() => props.modelValue, (newVal) => {
-      if (Object.keys(quillInstance).length) {
-        if (newVal && newVal !== contentTmp.value) {
-          contentTmp.value = newVal;
-          quillInstance.value.pasteHTML(newVal);
-        } else if (!newVal) {
-          quillInstance.value.setText('');
-        }
-      }
+    watch(modelValue, (newVal) => {
+      wang.editor.txt.html(newVal);
     });
 
-    watch(() => props.disabled, (newVal) => {
-      if (Object.keys(quillInstance).length) {
-        quillInstance.value.enable(!newVal);
-      }
-    });
+    onMounted(initEditor);
 
     return {
-      optionsTmp: {},
-      contentTmp: '',
-      defaultOptions,
-      editor,
+      wang,
     };
   },
 });
 </script>
+
+<style lang="scss" scoped>
+.rich-text_wrap {
+  width: 980px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  #editor {
+    flex: 1;
+    margin-bottom: 20px;
+    overflow-y: auto;
+  }
+}
+</style>

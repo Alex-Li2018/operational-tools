@@ -6,6 +6,10 @@ import {
   ElMessage,
   ElMessageBox,
   ElNotification,
+  ElDialog,
+  ElForm,
+  ElFormItem,
+  ElInput,
 } from 'element-plus';
 import App from './App.vue';
 import router from './router';
@@ -13,6 +17,10 @@ import router from './router';
 
 const components = [
   ElButton,
+  ElDialog,
+  ElForm,
+  ElFormItem,
+  ElInput,
 ];
 
 const plugins = [
